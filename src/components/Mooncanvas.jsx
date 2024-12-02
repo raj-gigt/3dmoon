@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Label, Radio } from "flowbite-react";
-import AlSiRatioTexture from "../assets/Al-Si_ratio.png";
-import MgSiRatioTexture from "../assets/Mg-Si_ratio.png";
 
 const Mooncanvas = () => {
   const [ratio, setRatio] = useState("Al-Si");
@@ -11,8 +9,8 @@ const Mooncanvas = () => {
     // initialize the scene
     const scene = new THREE.Scene();
     const textureLoader = new THREE.TextureLoader();
-    const AlSiRatio = textureLoader.load(AlSiRatioTexture);
-    const MgSiRatio = textureLoader.load(MgSiRatioTexture);
+    const AlSiRatio = textureLoader.load("/Al-Si_ratio.png");
+    const MgSiRatio = textureLoader.load("/Mg-Si_ratio.png");
     // add objects to the scene
     const moonGeometry = new THREE.IcosahedronGeometry(1, 16);
     const moonMaterial = new THREE.MeshStandardMaterial({});
