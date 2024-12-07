@@ -2,7 +2,55 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Label, Radio } from "flowbite-react";
+function getVisibleObjects(camera, group) {
+  // Update the camera's projection matrix
+  const raycaster = new THREE.Raycaster();
+  const frustum = new THREE.Frustum();
+  const cameraMatrix = new THREE.Matrix4();
+  const visibleObjects = [];
 
+  // Update the camera matrix and frustum
+  camera.updateMatrixWorld();
+  cameraMatrix.multiplyMatrices(
+    camera.projectionMatrix,
+    camera.matrixWorldInverse
+  );
+  frustum.setFromProjectionMatrix(cameraMatrix);
+
+  // Traverse the group to find objects
+  group.traverse((object) => {
+    if (object.isMesh) {
+      // Compute the object's bounding box in world space
+      const boundingBox = new THREE.Box3().setFromObject(object);
+
+      // Check if the bounding box intersects the camera frustum
+      if (!frustum.intersectsBox(boundingBox)) {
+        return; // Skip objects outside the frustum
+      }
+
+      // Calculate the direction from the camera to the object's center
+      const cameraPosition = camera.position.clone();
+      const objectWorldPosition = boundingBox.getCenter(new THREE.Vector3());
+      const direction = objectWorldPosition
+        .clone()
+        .sub(cameraPosition)
+        .normalize();
+
+      // Set raycaster from camera to the object's center
+      raycaster.set(cameraPosition, direction);
+
+      // Cast ray and check for intersections within the group
+      const intersects = raycaster.intersectObjects(group.children, true);
+
+      // Check if the bounding box is intersected first
+      if (intersects.length > 0 && intersects[0].object === object) {
+        visibleObjects.push(object);
+      }
+    }
+  });
+
+  return visibleObjects;
+}
 function getColorForRatio(ratio, min, max) {
   // Ensure ratio is clamped between min and max
   ratio = Math.max(min, Math.min(max, ratio));
@@ -85,42 +133,43 @@ const Mooncanvas = () => {
     // Initialize the scene
     const scene = new THREE.Scene();
     const textureLoader = new THREE.TextureLoader();
-    const AlSiRatio = textureLoader.load("/moonmap1k.jpg");
+    const moonmap = textureLoader.load("/moonmap1k.jpg");
     const MgSiRatio = textureLoader.load("/Mg-Si_ratio.png");
     console.log(data[0]);
     // Add objects to the scene
     const moonGeometry = new THREE.IcosahedronGeometry(1, 16);
     const moonMaterial = new THREE.MeshStandardMaterial({});
-    if (ratio === "Al-Si") {
-      moonMaterial.map = AlSiRatio;
-    } else if (ratio === "Mg-Si") {
-      moonMaterial.map = MgSiRatio;
-    }
+
+    moonMaterial.map = moonmap;
+
     const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
     scene.add(moonMesh);
     const ratiogrp = new THREE.Group();
-    data.map((obj, index) => {
-      if (index <= 2000) {
-        ratiogrp.add(
-          new THREE.Mesh(
-            new THREE.SphereGeometry(
-              1.01,
-              2,
-              2,
-              (parseFloat(obj.V0_LON) * Math.PI) / 180,
-              ((parseFloat(obj.V3_LON) - parseFloat(obj.V0_LON)) * Math.PI) /
-                180,
 
-              ((90 - parseFloat(obj.V0_LAT)) * Math.PI) / 180,
-              ((parseFloat(obj.V0_LAT) - parseFloat(obj.V1_LAT)) * Math.PI) /
-                180
-            ),
-            new THREE.MeshStandardMaterial({
-              color: getColorForRatio(parseFloat(obj.Al_Si_ratio), 0, 3),
-            })
-          )
-        );
-      }
+    data.map((obj, index) => {
+      // if (index <= 27000) {
+      const color =
+        ratio === "Al-Si"
+          ? getColorForRatio(parseFloat(obj.Al_Si_ratio), 0, 3)
+          : getColorForRatio(parseFloat(obj.Mg_Si_ratio), 0, 3); // Change color based on selected ratio
+
+      ratiogrp.add(
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            1.01,
+            2,
+            2,
+            (parseFloat(obj.V0_LON) * Math.PI) / 180,
+            ((parseFloat(obj.V3_LON) - parseFloat(obj.V0_LON)) * Math.PI) / 180,
+            ((90 - parseFloat(obj.V0_LAT)) * Math.PI) / 180,
+            ((parseFloat(obj.V0_LAT) - parseFloat(obj.V1_LAT)) * Math.PI) / 180
+          ),
+          new THREE.MeshStandardMaterial({
+            color: color, // Use the determined color
+          })
+        )
+      );
+      // }
     });
     // const ratiogeo = new THREE.SphereGeometry(
     //   1.005,
@@ -143,8 +192,8 @@ const Mooncanvas = () => {
     scene.add(ratiogrp);
 
     // add axes helper to the scene
-    const axesHelper = new THREE.AxesHelper(5); // 5 is the size of the axes
-    scene.add(axesHelper);
+    // const axesHelper = new THREE.AxesHelper(5); // 5 is the size of the axes
+    // scene.add(axesHelper);
 
     // initialize the camera
     const camera = new THREE.PerspectiveCamera(
@@ -182,9 +231,13 @@ const Mooncanvas = () => {
     scene.add(pointLight);
 
     // Render loop
+    // const visibleObjects = getVisibleObjects(camera, scene);
+
+    // console.log("Visible objects:", visibleObjects);
     const renderloop = () => {
       controls.update();
       renderer.render(scene, camera);
+
       window.requestAnimationFrame(renderloop);
     };
 
