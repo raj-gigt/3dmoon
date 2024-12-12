@@ -2,120 +2,73 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Label, Radio } from "flowbite-react";
-function getVisibleObjects(camera, group) {
-  // Update the camera's projection matrix
-  const raycaster = new THREE.Raycaster();
-  const frustum = new THREE.Frustum();
-  const cameraMatrix = new THREE.Matrix4();
-  const visibleObjects = [];
+// import { debounce } from "lodash"; // or implement your own debounce
 
-  // Update the camera matrix and frustum
-  camera.updateMatrixWorld();
-  cameraMatrix.multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse
-  );
-  frustum.setFromProjectionMatrix(cameraMatrix);
+// function getVisibleObjects(camera, group) {
+//   const raycaster = new THREE.Raycaster();
+//   const frustum = new THREE.Frustum();
+//   const cameraMatrix = new THREE.Matrix4();
+//   const visibleObjects = [];
+//   const boundingSphere = new THREE.Sphere();
+//   const tempVector = new THREE.Vector3();
 
-  // Traverse the group to find objects
-  group.traverse((object) => {
-    if (object.isMesh) {
-      // Compute the object's bounding box in world space
-      const boundingBox = new THREE.Box3().setFromObject(object);
+//   // Update the camera matrix and frustum
+//   camera.updateMatrixWorld();
+//   cameraMatrix.multiplyMatrices(
+//     camera.projectionMatrix,
+//     camera.matrixWorldInverse
+//   );
+//   frustum.setFromProjectionMatrix(cameraMatrix);
 
-      // Check if the bounding box intersects the camera frustum
-      if (!frustum.intersectsBox(boundingBox)) {
-        return; // Skip objects outside the frustum
-      }
+//   // Traverse the group to find objects
+//   group.traverse((object) => {
+//     if (object.isMesh) {
+//       try {
+//         // Use bounding box as a fallback if bounding sphere is not available
+//         const boundingBox = new THREE.Box3().setFromObject(object);
+//         boundingBox.getCenter(tempVector);
+//         boundingSphere.center.copy(tempVector);
+//         boundingSphere.radius = boundingBox.getSize(tempVector).length() / 2;
 
-      // Calculate the direction from the camera to the object's center
-      const cameraPosition = camera.position.clone();
-      const objectWorldPosition = boundingBox.getCenter(new THREE.Vector3());
-      const direction = objectWorldPosition
-        .clone()
-        .sub(cameraPosition)
-        .normalize();
+//         // Check if the bounding sphere intersects the camera frustum
+//         if (!frustum.intersectsSphere(boundingSphere)) {
+//           return; // Skip objects outside the frustum
+//         }
 
-      // Set raycaster from camera to the object's center
-      raycaster.set(cameraPosition, direction);
+//         // Calculate the direction from the camera to the object's center
+//         const cameraPosition = camera.position.clone();
+//         const direction = boundingSphere.center
+//           .clone()
+//           .sub(cameraPosition)
+//           .normalize();
 
-      // Cast ray and check for intersections within the group
-      const intersects = raycaster.intersectObjects(group.children, true);
+//         // Set raycaster from camera to the object's center with a small tolerance
+//         raycaster.set(cameraPosition, direction);
+//         raycaster.near = 0;
+//         raycaster.far = cameraPosition.distanceTo(boundingSphere.center) + 0.1;
 
-      // Check if the bounding box is intersected first
-      if (intersects.length > 0 && intersects[0].object === object) {
-        visibleObjects.push(object);
-      }
-    }
-  });
+//         // Cast ray and check for intersections within the group
+//         const intersects = raycaster.intersectObjects(group.children, true);
 
-  return visibleObjects;
-}
-function getColorForRatio(ratio, min, max) {
-  // Ensure ratio is clamped between min and max
-  ratio = Math.max(min, Math.min(max, ratio));
+//         // Check if the object is the first intersected object
+//         if (intersects.length > 0 && intersects[0].object === object) {
+//           visibleObjects.push(object);
+//         }
+//       } catch (error) {
+//         console.error("Error processing object:", object, error);
+//       }
+//     }
+//   });
 
-  // Normalize the ratio to a 0-1 scale
-  const i = (ratio - min) / (max - min);
-
-  let r;
-  let g;
-  let b;
-  if (i >= 0 && i <= 0.25) {
-    r = 0;
-    g = (i / 0.25) * 255;
-    b = 255;
-  } else if (i >= 0.25 && i <= 0.5) {
-    r = 0;
-    g = 255;
-    b = ((0.5 - i) / 0.25) * 255;
-  } else if (i >= 0.5 && i <= 0.75) {
-    r = ((i - 0.5) / 0.25) * 255;
-    g = 255;
-    b = 0;
-  } else {
-    r = 255;
-    g = ((1 - i) / 0.25) * 255;
-    b = 0;
-  }
-
-  return `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
-}
-
-async function loadCSV(url) {
-  const response = await fetch(url);
-  const csvText = await response.text();
-  return parseCSV(csvText);
-}
-
-// Parse CSV Data
-function parseCSV(csvText) {
-  const rows = csvText.split("\n").map((row) => row.trim());
-  const headers = rows[0].split(","); // First row contains headers
-  const data = rows.slice(1).map((row) => {
-    const values = row.split(",");
-    return headers.reduce((acc, header, i) => {
-      acc[header] = values[i];
-      return acc;
-    }, {});
-  });
-  return data;
-}
+//   return visibleObjects;
+// }
 
 const Mooncanvas = () => {
-  const [ratio, setRatio] = useState("Al-Si");
-  const [data, setData] = useState([]); // State to hold loaded CSV data
+  const [ratio, setRatio] = useState("Al_Si_ratio");
+
   const canvasRef = useRef(null); // Create a ref for the canvas
 
   // Load CSV data
-  useEffect(() => {
-    const fetchData = async () => {
-      const csvData = await loadCSV("catalogue.csv");
-      setData(csvData); // Set the loaded data
-    };
-
-    fetchData();
-  }, []); // Run once on mount
 
   useEffect(() => {
     const canvas = canvasRef.current; // Get the current canvas reference
@@ -133,67 +86,55 @@ const Mooncanvas = () => {
     // Initialize the scene
     const scene = new THREE.Scene();
     const textureLoader = new THREE.TextureLoader();
-    const moonmap = textureLoader.load("/moonmap1k.jpg");
-    const MgSiRatio = textureLoader.load("/Mg-Si_ratio.png");
-    console.log(data[0]);
-    // Add objects to the scene
-    const moonGeometry = new THREE.IcosahedronGeometry(1, 16);
-    const moonMaterial = new THREE.MeshStandardMaterial({});
+    const almap = textureLoader.load("/Al_percentage_hexagon.png");
+    const al_si_map = textureLoader.load("/Al_Si_ratio_hexagon.png");
+    const mg_si_map = textureLoader.load("/Mg_Si_ratio_hexagon.png");
+    const mg_map = textureLoader.load("/Mg_percentage_hexagon.png");
+    const texturemap = {
+      Al_percentage: almap,
+      Mg_percentage: mg_map,
+      Al_Si_ratio: al_si_map,
+      Mg_Si_ratio: mg_si_map,
+    };
 
-    moonMaterial.map = moonmap;
-
-    const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
-    scene.add(moonMesh);
     const ratiogrp = new THREE.Group();
+    const axesHelper = new THREE.AxesHelper(5); // 5 is the size of the axes
+    scene.add(axesHelper);
+    const moongeo = new THREE.SphereGeometry(1, 64, 64);
+    const moonmap = new THREE.MeshStandardMaterial({});
+    moonmap.map = texturemap[ratio];
+    const moonmesh = new THREE.Mesh(moongeo, moonmap);
+    scene.add(moonmesh);
+    // for (let x = 1; x <= 18; x++) {
+    //   for (let y = 1; y <= 9; y++) {
+    //     const slicemap = textureLoader.load(
+    //       `/base_4k/row-${y}-column-${x}.png`
+    //     );
+    //     let moonmesh = new THREE.Mesh(
+    //       new THREE.SphereGeometry(
+    //         1,
+    //         8,
+    //         8,
+    //         ((20 * x - 20) * Math.PI) / 180,
+    //         (20 * Math.PI) / 180,
+    //         ((20 * y - 20) * Math.PI) / 180,
+    //         (20 * Math.PI) / 180
+    //       ),
+    //       new THREE.MeshStandardMaterial({
+    //         map: slicemap,
+    //       })
+    //     );
+    //     moonmesh.tileX = x;
+    //     moonmesh.tileY = y;
+    //     ratiogrp.add(moonmesh);
+    //   }
+    // }
 
-    data.map((obj, index) => {
-      // if (index <= 27000) {
-      const color =
-        ratio === "Al-Si"
-          ? getColorForRatio(parseFloat(obj.Al_Si_ratio), 0, 3)
-          : getColorForRatio(parseFloat(obj.Mg_Si_ratio), 0, 3); // Change color based on selected ratio
+    // console.log(ratiogrp.children);
 
-      ratiogrp.add(
-        new THREE.Mesh(
-          new THREE.SphereGeometry(
-            1.01,
-            2,
-            2,
-            (parseFloat(obj.V0_LON) * Math.PI) / 180,
-            ((parseFloat(obj.V3_LON) - parseFloat(obj.V0_LON)) * Math.PI) / 180,
-            ((90 - parseFloat(obj.V0_LAT)) * Math.PI) / 180,
-            ((parseFloat(obj.V0_LAT) - parseFloat(obj.V1_LAT)) * Math.PI) / 180
-          ),
-          new THREE.MeshStandardMaterial({
-            color: color, // Use the determined color
-          })
-        )
-      );
-      // }
-    });
-    // const ratiogeo = new THREE.SphereGeometry(
-    //   1.005,
-    //   16,
-    //   16,
-    //   (parseFloat(data[0].V0_LON) * Math.PI) / 180,
-    //   ((parseFloat(data[0].V3_LON) - parseFloat(data[0].V0_LON)) * Math.PI) /
-    //     180,
-
-    //   ((90 - parseFloat(data[0].V0_LAT)) * Math.PI) / 180,
-    //   ((parseFloat(data[0].V0_LAT) - parseFloat(data[0].V1_LAT)) * Math.PI) /
-    //     180
-    // );
-    // const ratiomat = new THREE.MeshStandardMaterial({
-    //   color: getColorForRatio(parseFloat(data[0].Al_Si_ratio), 0, 3),
-    // });
-    // console.log(ratiomat.color); // Check the color value
-    // const ratiomesh = new THREE.Mesh(ratiogeo, ratiomat);
-    // ratiogrp.add(ratiomesh);
-    scene.add(ratiogrp);
+    // scene.add(ratiogrp);
 
     // add axes helper to the scene
-    // const axesHelper = new THREE.AxesHelper(5); // 5 is the size of the axes
-    // scene.add(axesHelper);
 
     // initialize the camera
     const camera = new THREE.PerspectiveCamera(
@@ -212,6 +153,18 @@ const Mooncanvas = () => {
     // instantiate the controls
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
+    const origin = new THREE.Vector3(0, 0, 0);
+    // Define the debounced function outside of the event listener
+    // const debouncedVisibleObjects = debounce((camera, ratiogrp) => {
+    //   const distance = camera.position.distanceTo(origin);
+    //   const visibleObjects = getVisibleObjects(camera, ratiogrp);
+    //   if (visibleObjects.length !== 0) {
+    //     console.log(distance);
+    //     console.log("Visible objects:", visibleObjects);
+    //   }
+    // }, 1000); // Adjust debounce time as needed
+
+    // Define the event handler
 
     // Handle window resize
     const handleResize = () => {
@@ -231,26 +184,23 @@ const Mooncanvas = () => {
     scene.add(pointLight);
 
     // Render loop
-    // const visibleObjects = getVisibleObjects(camera, scene);
 
-    // console.log("Visible objects:", visibleObjects);
     const renderloop = () => {
-      controls.update();
+      controls.update(); // This is crucial for damping and smooth controls
       renderer.render(scene, camera);
-
       window.requestAnimationFrame(renderloop);
     };
 
     renderloop();
 
-    // Cleanup function to dispose of the renderer on unmount
+    // Cleanup function
     return () => {
-      window.removeEventListener("resize", handleResize); // Cleanup resize listener
+      window.removeEventListener("resize", handleResize);
       if (renderer) {
-        renderer.dispose(); // Dispose of the renderer
+        renderer.dispose();
       }
     };
-  }, [ratio, data]); // Add data as a dependency if you need to re-render based on it
+  }, [ratio]); // Ensure dependencies are set correctly
 
   return (
     <div className="relative">
@@ -260,7 +210,7 @@ const Mooncanvas = () => {
           <Radio
             id="united-state"
             name="countries"
-            value="Al-Si"
+            value="Al_Si_ratio"
             defaultChecked
             onChange={(e) => {
               setRatio(e.target.value);
@@ -274,13 +224,39 @@ const Mooncanvas = () => {
           <Radio
             id="germany"
             name="countries"
-            value="Mg-Si"
+            value="Mg_Si_ratio"
             onChange={(e) => {
               setRatio(e.target.value);
             }}
           />
           <Label htmlFor="germany" className="text-white">
             Mg-Si
+          </Label>
+        </div>
+        <div className="flex items-center gap-2 text-white">
+          <Radio
+            id="germany"
+            name="countries"
+            value="Al_percentage"
+            onChange={(e) => {
+              setRatio(e.target.value);
+            }}
+          />
+          <Label htmlFor="germany" className="text-white">
+            Al percent
+          </Label>
+        </div>
+        <div className="flex items-center gap-2 text-white">
+          <Radio
+            id="germany"
+            name="countries"
+            value="Mg_percentage"
+            onChange={(e) => {
+              setRatio(e.target.value);
+            }}
+          />
+          <Label htmlFor="germany" className="text-white">
+            Mg percent
           </Label>
         </div>
       </div>

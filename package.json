@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",
+    "canvas": "^2.11.2",
     "flowbite-react": "^0.10.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.171.0",
-    "utif": "^3.1.0"
+    "three": "^0.171.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
